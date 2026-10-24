@@ -48,9 +48,9 @@
           <img class="grok__wrappers" src="./images/hero/wrapper.avif" loading="lazy" decoding="async" width="533"
             height="390" alt="wrapper">
           <div class="container">
-            <a class="hero__btn registerBtn" href="https://t.me/+DCcwSCfohihkNDA0">
+            <button type="button" class="hero__btn registerBtn" aria-haspopup="dialog" aria-controls="registrationModal">
               Ehson qilmoqchiman
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -113,9 +113,9 @@
         </div>
       </div>
       <div>
-        <a class="hero__btn registerBtn" href="https://t.me/+DCcwSCfohihkNDA0">
+        <button type="button" class="hero__btn registerBtn" aria-haspopup="dialog" aria-controls="registrationModal">
           Ehson qilish
-        </a>
+        </button>
       </div>
       <div class="exson__Wrapper">
         <p class="exson__text">
@@ -126,6 +126,49 @@
       </div>
     </footer>
   </main>
+
+  <div id="registrationModal" class="homeModal" role="dialog" aria-modal="true" aria-labelledby="registrationTitle" style="display: none">
+    <div class="homeModalOverlay"></div>
+    <div class="homeFormContainer">
+      <button type="button" class="closeButton" id="closeModalBtn" aria-label="Yopish">
+        <svg width="16" height="16" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+          <path d="M1 11L11 1M1 1.00001L11 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+      </button>
+      <div class="homeFormTop">
+        <h2 class="homeFormTopTitle" id="registrationTitle">Ro'yxatdan o'tish uchun ma'lumotlaringizni kiriting!</h2>
+      </div>
+      <form id="registrationForm" name="contact-form" novalidate>
+        <div class="HomeFormRow">
+          <label class="HomeFormRowLabel" for="name">Ism va familiyangiz:</label>
+          <input class="HomeFormRowInput" type="text" id="name" name="name" placeholder="Ism va familiyangizni kiriting" autocomplete="name" maxlength="120" required aria-describedby="nameError" />
+          <p class="homeFormErrorText" id="nameError" style="display: none" role="alert">Ism va familiyangizni kiriting!</p>
+        </div>
+        <div class="HomeFormRow">
+          <label class="HomeFormRowLabel" for="phone">Telefon raqamingiz:</label>
+          <div class="phone-input-container">
+            <button type="button" class="selected-country" id="selectedCountry" aria-label="Davlat kodini tanlash" aria-expanded="false" aria-controls="countryDropdown">
+              <span class="selected-flag" id="selectedCountryFlag">🇺🇿</span>
+              <svg id="dropdownIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+              <span class="selected-code" id="selectedCountryCodeText">+998</span>
+            </button>
+            <div class="country-dropdown" id="countryDropdown" style="display: none"></div>
+            <div class="phone-field">
+              <input class="HomeFormRowInput phone-input" type="tel" id="phone" name="phone" inputmode="tel" placeholder="88 888 88 88" autocomplete="tel" required aria-describedby="phoneError" style="border: none; background-color: transparent; padding-left: 5px" />
+            </div>
+          </div>
+          <p class="homeFormErrorText" id="phoneError" style="display: none" role="alert">Telefon raqam mos emas!</p>
+        </div>
+        <p class="homeFormErrorText" id="storageError" style="display: none" role="alert">Ma'lumotni saqlab bo'lmadi. Brauzer xotirasiga ruxsat berib, qayta urinib ko'ring.</p>
+        <button type="submit" class="HomeFormBtn" id="submitBtn">DAVOM ETISH</button>
+      </form>
+    </div>
+  </div>
+
+  <script defer src="./js/phoneFormatter.js"></script>
+  <script defer src="./js/app.js"></script>
 
    <!-- Meta Pixel Code -->
 <script defer>
@@ -145,22 +188,6 @@
   /></noscript>
   <!-- End Meta Pixel Code -->
 
-  <script defer>
-  document.addEventListener("DOMContentLoaded", function() {
-    document.querySelectorAll(".registerBtn").forEach(function(btn) {
-      btn.addEventListener("click", function(e) {
-        e.preventDefault();
-        var url = btn.getAttribute("href");
-        if (typeof fbq === "function") {
-          fbq("track", "CompleteRegistration");
-        }
-        setTimeout(function() {
-          window.location.href = url;
-        }, 300);
-      });
-    });
-  });
-  </script>
 </body>
 
 </html>

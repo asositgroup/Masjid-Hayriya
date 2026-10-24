@@ -1,0 +1,20 @@
+# Local instructions, diagnostics, and font pipeline are not site assets.
+.git/
+.vscode/
+.playwright-mcp/
+node_modules/
+tools/
+design-refs/
+check.mjs
+AGENTS.md
+CLAUDE.md
+PROJECT.md
+WORKFLOW.md
+RULES.md
+MODAL.md
+SHEETS.md
+FONTS.md
+HANDOFF.md
+README.md
+.env
+.env.*
