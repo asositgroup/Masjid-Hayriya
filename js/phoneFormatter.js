@@ -213,6 +213,8 @@ function setupPhoneFormatter({
   const extractCodeOnly = (val) =>
     String(val || "").match(/\+\d+/)?.[0] || "+998";
   let currentCode = extractCodeOnly(defaultCode);
+  let lastValue = "";
+  let rejectedInput = false;
 
   const findCountryByCode = (code) =>
     countries.find((c) => c.code === code) ||
@@ -286,8 +288,10 @@ function setupPhoneFormatter({
 
         const cfg = getConfig(currentCode);
         phoneInput.placeholder = cfg.placeholder;
-        phoneInput.maxLength = 32;
         phoneInput.value = "";
+        lastValue = "";
+        rejectedInput = false;
+        phoneInput.setAttribute("aria-invalid", "false");
 
         if (errorEl) errorEl.style.display = "none";
         closeDropdown();
@@ -311,31 +315,50 @@ function setupPhoneFormatter({
     return null;
   };
 
-  const applyValue = (raw) => {
-    if (!raw) {
-      phoneInput.value = "";
-      return;
-    }
+  const rejectValue = () => {
+    // Keep the last accepted value, but never submit it as if a failed paste
+    // had succeeded. A correction or country change clears this state.
+    phoneInput.value = lastValue;
+    rejectedInput = true;
+    phoneInput.setAttribute("aria-invalid", "true");
+    if (errorEl) errorEl.style.display = "block";
+    return false;
+  };
 
+  const applyValue = (raw, caret = phoneInput.selectionStart) => {
+    raw = String(raw || "");
     const trimmed = raw.trim();
-    let rest = trimmed;
-
     const maybeCode = detectCodeFromPlus(trimmed);
-    if (maybeCode && maybeCode !== currentCode) {
-      currentCode = maybeCode;
-      renderSelected();
-      rest = trimmed.slice(maybeCode.length);
-    } else if (maybeCode) {
-      rest = trimmed.slice(maybeCode.length);
-    }
+    if (trimmed.startsWith("+") && !maybeCode) return rejectValue();
 
-    const cfg = getConfig(currentCode);
+    const candidateCode = maybeCode || currentCode;
+    const cfg = getConfig(candidateCode);
+    const rest = maybeCode ? trimmed.slice(maybeCode.length) : trimmed;
     const digits = rest.replace(/\D/g, "");
+    if (digits.length > cfg.maxDigits) return rejectValue();
+
+    const digitsBeforeCaret = Math.max(0,
+      raw.slice(0, caret ?? raw.length).replace(/\D/g, "").length -
+      (maybeCode ? maybeCode.length - 1 : 0)
+    );
+    currentCode = candidateCode;
+    renderSelected();
     phoneInput.placeholder = cfg.placeholder;
-    // Allow the entire international value to reach the formatter on paste or
-    // autofill. Never silently drop excess digits into a different valid phone.
-    phoneInput.maxLength = 32;
-    phoneInput.value = digits.length > cfg.maxDigits ? rest : cfg.formatDigits(digits);
+    phoneInput.value = cfg.formatDigits(digits);
+    lastValue = phoneInput.value;
+    rejectedInput = false;
+    phoneInput.setAttribute("aria-invalid", "false");
+    if (errorEl) errorEl.style.display = "none";
+
+    // Formatting adds spaces; restore the cursor by digit index, not raw index.
+    let position = 0;
+    let count = 0;
+    while (position < lastValue.length && count < digitsBeforeCaret) {
+      if (/\d/.test(lastValue[position])) count++;
+      position++;
+    }
+    phoneInput.setSelectionRange(position, position);
+    return true;
   };
 
   function toggle(ev) {
@@ -358,22 +381,71 @@ function setupPhoneFormatter({
     closeDropdown();
   });
 
-  phoneInput.addEventListener("input", (ev) => {
-    applyValue(ev.target.value);
-    if (errorEl) errorEl.style.display = "none";
+  phoneInput.addEventListener("beforeinput", (ev) => {
+    if (ev.isComposing || !ev.cancelable) return;
+    const value = phoneInput.value;
+    const start = phoneInput.selectionStart ?? value.length;
+    const end = phoneInput.selectionEnd ?? start;
+
+    if (ev.inputType === "insertText" && ev.data?.length === 1) {
+      const candidate = value.slice(0, start) + ev.data + value.slice(end);
+      if (!/^\d+$/.test(ev.data) ||
+          candidate.replace(/\D/g, "").length > getConfig(currentCode).maxDigits) {
+        ev.preventDefault();
+      }
+    }
+
+    // A single Backspace/Delete at a separator should remove a digit, rather
+    // than remove a space that formatting would immediately put back.
+    if (start === end && ev.inputType === "deleteContentBackward" &&
+        value[start - 1] === " ") {
+      ev.preventDefault();
+      applyValue(value.slice(0, start - 2) + value.slice(start), start - 2);
+    } else if (start === end && ev.inputType === "deleteContentForward" &&
+        value[start] === " ") {
+      ev.preventDefault();
+      applyValue(value.slice(0, start) + value.slice(start + 2), start);
+    }
   });
 
-  phoneInput.addEventListener("change", (ev) => applyValue(ev.target.value));
+  phoneInput.addEventListener("paste", (ev) => {
+    if (!ev.clipboardData) return;
+    ev.preventDefault();
+    const text = ev.clipboardData.getData("text");
+    const start = phoneInput.selectionStart ?? 0;
+    const end = phoneInput.selectionEnd ?? phoneInput.value.length;
+    const candidate = phoneInput.value.slice(0, start) + text + phoneInput.value.slice(end);
+    applyValue(candidate, start + text.length);
+  });
+
+  phoneInput.addEventListener("input", (ev) => {
+    // Some keyboards emit input again after compositionend. Do not let that
+    // echo turn a rejected composition's restored value into an accepted edit.
+    if (!ev.isComposing && !(rejectedInput && phoneInput.value === lastValue)) {
+      applyValue(ev.target.value);
+    }
+  });
+  phoneInput.addEventListener("compositionend", () => {
+    if (!rejectedInput || phoneInput.value !== lastValue) applyValue(phoneInput.value);
+  });
+  phoneInput.addEventListener("change", () => {
+    if (phoneInput.value !== lastValue) applyValue(phoneInput.value);
+  });
 
   renderSelected();
   const cfg = getConfig(currentCode);
   phoneInput.placeholder = cfg.placeholder;
-  phoneInput.maxLength = 32;
+  // Native maxlength can truncate an international autofill before we see it.
+  // The input handlers enforce the country's digit limit on the full value.
+  phoneInput.removeAttribute("maxlength");
+  phoneInput.inputMode = "numeric";
+  phoneInput.setAttribute("pattern", "[0-9 ]*");
+  if (phoneInput.value) applyValue(phoneInput.value);
 
   return {
     getCurrentCode: () => currentCode,
     validate: (val) =>
-      getConfig(currentCode).validate.test(String(val || "").trim()),
+      !rejectedInput && getConfig(currentCode).validate.test(String(val || "").trim()),
   };
 }
 
